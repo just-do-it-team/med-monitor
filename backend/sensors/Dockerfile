@@ -2,7 +2,7 @@ FROM python:3.12
 
 COPY *.py /sensor/
 COPY requirements.txt /sensor/
-COPY data /sensor/
+COPY ./data ./sensor/
 
 WORKDIR /sensor/
 

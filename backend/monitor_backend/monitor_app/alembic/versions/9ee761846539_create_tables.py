@@ -51,7 +51,7 @@ def upgrade() -> None:
                     sa.Column('decelsLate', sa.Integer(), nullable=True),
                     sa.Column('decelsVarGood', sa.Integer(), nullable=True),
                     sa.Column('decelsVarBad', sa.Integer(), nullable=True),
-                    sa.Column('analysis', JSONB, nullable=True),
+                    sa.Column('analysis', sa.String(), nullable=True),
                     sa.Column('filename', sa.String(), nullable=False),
                     sa.PrimaryKeyConstraint('id'),
                     )

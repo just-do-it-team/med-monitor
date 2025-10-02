@@ -11,7 +11,8 @@ analysis_router = APIRouter()
 @analysis_router.get('/start_analysis')
 async def analysis(
         patient_id: int,
+        history_id: int,
         session: Annotated[AsyncSession, Depends(get_async_session)]
 ):
-    return await start_analysis(patient_id, session)
+    return await start_analysis(patient_id, history_id, session)
 

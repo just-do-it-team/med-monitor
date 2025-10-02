@@ -17,11 +17,9 @@ os.environ["POLARS_MAX_THREADS"] = "6"
 load_dotenv(find_dotenv())
 
 default_second = {'fhr': [], 'uc': []}
-default_full = {'fhr': [], 'uc': [], 'time': []}
 default_full_by_second = {'fhr': [], 'uc': [], 'time': []}
-default_status = {'basal': 999, 'var': 999, 'ucs': 999, 'decs': 999, 'accs': 999}
 default_decs = {"decelsEarly": 0, "decelsLate": 0, "decelsVarGood": 0, "decelsVarBad": 0}
-default_fetal_health_indications = {'basalValue': 999, 'basalStatus': 'Не определен', 'basalComment': '',
+default_fetal_health_indications = {'basalValue': 999, 'basalStatus': 'Не определено', 'basalComment': '',
                             'varValue': 999, 'varStatus': 'Не определено', 'varComment': '',
                             'accsValue': 999, 'accsStatus': 'Не определено', 'accsComment': '',
                             'decsValue': 999, 'decsStatus': 'Не определено', 'decsComment': '',
@@ -51,13 +49,40 @@ def baseline_heart_rate_median(signal, kernel_size=51):
 async def receiver(url, websocket):
     try:
         async with websockets.connect(url) as ws:
-            decs = copy.deepcopy(default_decs)
-            full = copy.deepcopy(default_full)
-            full_by_second = copy.deepcopy(default_full_by_second)
+            decs["decelsEarly"] = 0
+            decs["decelsLate"] = 0
+            decs["decelsVarGood"] = 0
+            decs["decelsVarBad"] = 0
+            full['time'] = []
+            full['fhr'] = []
+            full['uc'] = []
+            status['basal'] = 999
+            status['var'] = 999
+            status['ucs'] = 999
+            status['decs'] = 999
+            status['accs'] = 999
+            full_by_second['fhr'] = []
+            full_by_second['uc'] = []
+            full_by_second['time'] = []
             decs_determination_sec.clear()
             ucs_determination_sec.clear()
             stv.clear()
-            fetal_health_indications = copy.deepcopy(default_fetal_health_indications)
+            fetal_health_indications['basalValue'] = 999
+            fetal_health_indications['basalStatus'] = "Не определено"
+            fetal_health_indications['basalComment'] = ""
+            fetal_health_indications['varValue'] = 999
+            fetal_health_indications['varStatus'] = 'Не определено'
+            fetal_health_indications['varComment'] = ''
+            fetal_health_indications['accsValue'] = 999
+            fetal_health_indications['accsStatus'] = 'Не определено'
+            fetal_health_indications['accsComment'] = ''
+            fetal_health_indications['decsValue'] = 999
+            fetal_health_indications['decsStatus'] = 'Не определено'
+            fetal_health_indications['decsComment'] = ''
+            fetal_health_indications['ucsValue'] = 999
+            fetal_health_indications['ucsStatus'] = 'Не определено'
+            fetal_health_indications['ucsComment'] = ''
+            fetal_health_indications['overallStatus'] = 'Не определено'
             async for message in ws:
                 if message.split('=')[1] == 'null':
                     second['uc'].append(float(message.split('=')[2]))
@@ -84,7 +109,6 @@ async def receiver(url, websocket):
 
 async def ticker(websocket):
     await websocket.accept()
-    status = copy.deepcopy(default_status)
     try:
         sec_counter = 0
         while True:
@@ -150,8 +174,8 @@ async def ws_dashboard(websocket, ctg_type, folder_id, patient_id, session):
     for task in pending:
         task.cancel()
     timestamp = (datetime.now().strftime('%Y-%m-%d_%H-%M-%S'), datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    # os.makedirs(os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}"), exist_ok=True)  #TODO
-    # filepath_full = os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}/full{timestamp}.parquet")  #TODO
+    # os.makedirs(os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}"), exist_ok=True)
+    # filepath_full = os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}/full{timestamp}.parquet")
     os.makedirs(f"ctg_dir/{patient_id}", exist_ok=True)
     filepath_full = f"ctg_dir/{patient_id}/full{timestamp[0]}.parquet"
     full_df = pl.LazyFrame(schema={'time': pl.Float64, 'fhr': pl.Float64, 'uc': pl.Float64}, data=full)
@@ -160,7 +184,7 @@ async def ws_dashboard(websocket, ctg_type, folder_id, patient_id, session):
     full['uc'] = []
     full['time'] = []
     filename = f'by_second{timestamp[0]}.parquet'
-    # filepath_full_by_second = os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}/full.parquet")  #TODO
+    # filepath_full_by_second = os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}/full.parquet")
     filepath_full_by_second = f"ctg_dir/{patient_id}/{filename}"
     full_by_second_df = pl.LazyFrame(schema={'time': pl.Float32, 'fhr': pl.Float32, 'uc': pl.Float32},
                                      data={'time': full_by_second['time'][:min(len(full_by_second['time']), len(full_by_second['fhr']))],
