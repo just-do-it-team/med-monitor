@@ -199,11 +199,11 @@ export const UcChart: React.FC<UCChartProps> = ({
         labels.push(
           <text
             key={`uc-center-label-${pressure}-${index}`}
-            x={centerX + 20}
-            y={y + 4}
+            x={centerX + 6}
+            y={y + 10}
             fontSize="12"
             fill="#2c3e50"
-            textAnchor="middle"
+            textAnchor="start"
           >
             {pressure}
           </text>,
@@ -249,11 +249,10 @@ export const UcChart: React.FC<UCChartProps> = ({
           </clipPath>
         </defs>
         <g transform={`translate(${margin.left}, ${margin.top})`}>
-          {/* Grid lines */}
+
           {generateVerticalLines()}
           {generateUCHorizontalLines()}
 
-          {/* UC trace with clipping */}
           <g clipPath="url(#uc-chart-area)">
             <path
               d={generateUCPath()}

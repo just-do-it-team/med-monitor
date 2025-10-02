@@ -54,7 +54,7 @@ export const HistoryCharts = () => {
             </Button>
           </div>
         </div>
-        <div className="flex flex-col justify-center items-center mt-[30px]">
+        <div className="flex flex-col justify-center items-center mt-[30px] gap-y-4">
           <FhrChart
             fhrData={historyFhrData}
             width={1600}

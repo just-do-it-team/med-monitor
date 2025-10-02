@@ -62,7 +62,7 @@ export const RealTimeCharts = () => {
           </Button>
         </div>
 
-        <div className="flex flex-col justify-center items-center mt-[30px]">
+        <div className="flex flex-col justify-center items-center mt-[30px] gap-y-4">
           <FhrChart
             fhrData={fhrData}
             width={950}

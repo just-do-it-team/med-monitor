@@ -199,11 +199,11 @@ export const FhrChart: React.FC<FHRChartProps> = ({
         labels.push(
           <text
             key={`fhr-center-label-${bpm}-${index}`}
-            x={centerX + 20}
-            y={y + 4}
+            x={centerX + 6}
+            y={y + 10}
             fontSize="12"
             fill="#2c3e50"
-            textAnchor="middle"
+            textAnchor="start"
           >
             {bpm}
           </text>,
@@ -249,11 +249,10 @@ export const FhrChart: React.FC<FHRChartProps> = ({
           </clipPath>
         </defs>
         <g transform={`translate(${margin.left}, ${margin.top})`}>
-          {/* Grid lines */}
+
           {generateVerticalLines()}
           {generateFHRHorizontalLines()}
 
-          {/* FHR trace with clipping */}
           <g clipPath="url(#fhr-chart-area)">
             <path
               d={generateFHRPath()}
