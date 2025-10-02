@@ -16,7 +16,7 @@ export const FhrChart: React.FC<FHRChartProps> = ({
   duration = 20,
   currentTime = 0,
 }) => {
-  const margin = { top: 20, right: 35, bottom: 20, left: 10 };
+  const margin = { top: 20, right: 35, bottom: 20, left: 15 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
