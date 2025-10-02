@@ -47,7 +47,7 @@ export const useSelectedHistoryQuery = (patientId: number, historyId: number) =>
     },
   });
 
-export const useLastHistoryQuery = (patientId: number, options?: any) =>
+export const useLastHistoryQuery = (patientId: number) =>
   useQuery<HistoryItemType>({
     queryKey: ["lastHistoryItem", patientId],
     queryFn: async () => {
@@ -65,5 +65,4 @@ export const useLastHistoryQuery = (patientId: number, options?: any) =>
       }
     },
     enabled: false,
-    ...options,
   });

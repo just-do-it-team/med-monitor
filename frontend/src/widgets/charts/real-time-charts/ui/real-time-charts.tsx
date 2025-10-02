@@ -9,33 +9,40 @@ import { UcChart } from "@/features/charts/uc-chart";
 import { useIndicatorsSocket } from "@/entities/chart/model/services/services.ts";
 import { useLastHistoryQuery } from "@/entities/history/model/services/services.ts";
 import { usePatientStore } from "@/entities/patient";
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { useHistoryStore } from "@/entities/history";
 
 export const RealTimeCharts = () => {
   const [isRealTime, setIsRealTime] = useState(false);
 
-  const { setSelectedHistory } = useHistoryStore();
   const { fhrData, ucData, currentTime } = useChartsStore();
   const { selectedPatient } = usePatientStore();
 
-  const { data, refetch } = useLastHistoryQuery(selectedPatient!.id, {
-    enabled: true,
-  });
-
+  const { data: lastHistoryId, refetch } = useLastHistoryQuery(selectedPatient!.id);
   const { reset, socketRef } = useChartsSocket(isRealTime);
   const { indicatorsSocketRef } = useIndicatorsSocket(isRealTime);
 
-  const toggleRealTime = () => {
+  const { setSelectedHistory } = useHistoryStore();
+
+  useEffect(() => {
+    if (lastHistoryId) {
+      setSelectedHistory(lastHistoryId);
+    }
+  }, [lastHistoryId, setSelectedHistory]);
+
+  const toggleRealTime = async () => {
     if (isRealTime) {
+      const { data } = await refetch();
+      if (data) {
+        setSelectedHistory(data);
+      }
+
       setIsRealTime(false);
       socketRef.current?.close();
       indicatorsSocketRef.current?.close();
     } else {
       reset();
       setIsRealTime(true);
-      refetch();
-      setSelectedHistory(data);
     }
   };
 
