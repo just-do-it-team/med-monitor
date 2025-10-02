@@ -119,7 +119,11 @@ const AnalyticsPage = () => {
                 weight="light"
                 className=" max-h-[145px] overflow-y-auto"
               >
-                {analysisText ? analysisText : "—"}
+                {data?.analysis
+                  ? data?.analysis
+                  : analysisText
+                    ? analysisText
+                    : "—"}
               </Typography>
             </CardContent>
           </Card>
