@@ -52,6 +52,8 @@ export type ChartsState = {
   fhrData: ChartDataType[];
   ucData: ChartDataType[];
 
+  lastHistoryLoading: boolean;
+
   currentTime: number;
   socketConnected: boolean;
 
@@ -94,6 +96,8 @@ export type ChartsState = {
   setHistoryUcData: (points: ChartDataType[]) => void;
 
   setCurrentTime: (t: number) => void;
+
+  setLastHistoryLoading: (l: boolean) => void;
 
   setSocketConnected: (v: boolean) => void;
 

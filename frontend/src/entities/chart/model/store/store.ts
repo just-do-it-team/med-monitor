@@ -6,6 +6,7 @@ export const useChartsStore = create<ChartsState>((set) => ({
   historyUcData: [],
   fhrData: [],
   ucData: [],
+  lastHistoryLoading: false,
   currentTime: 0,
   socketConnected: false,
   latestIndicators: {
@@ -64,6 +65,8 @@ export const useChartsStore = create<ChartsState>((set) => ({
     }),
 
   setCurrentTime: (t) => set({ currentTime: t }),
+
+  setLastHistoryLoading: (l) => set({ lastHistoryLoading: l }),
 
   setSocketConnected: (v) => set({ socketConnected: v }),
 

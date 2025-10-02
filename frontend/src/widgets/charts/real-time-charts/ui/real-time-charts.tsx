@@ -1,6 +1,6 @@
 import { Typography } from "@/shared/ui/typography.tsx";
 import { Card, CardContent } from "@/shared/ui/card.tsx";
-import { Play, Square } from "lucide-react";
+import { Loader2, Play, Square } from "lucide-react";
 import { Button } from "@/shared/ui/button.tsx";
 import { useChartsSocket, useChartsStore } from "@/entities/chart";
 import { timer } from "@/shared/config/date/timer.ts";
@@ -9,20 +9,32 @@ import { UcChart } from "@/features/charts/uc-chart";
 import { useIndicatorsSocket } from "@/entities/chart/model/services/services.ts";
 import { useLastHistoryQuery } from "@/entities/history/model/services/services.ts";
 import { usePatientStore } from "@/entities/patient";
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import { useHistoryStore } from "@/entities/history";
 
 export const RealTimeCharts = () => {
   const [isRealTime, setIsRealTime] = useState(false);
+  // const [isLoading, setIsLoading] = useState(false);
 
-  const { fhrData, ucData, currentTime } = useChartsStore();
+  const {
+    fhrData,
+    ucData,
+    currentTime,
+    lastHistoryLoading,
+    setLastHistoryLoading,
+  } = useChartsStore();
   const { selectedPatient } = usePatientStore();
 
-  const { data: lastHistoryId, refetch } = useLastHistoryQuery(selectedPatient!.id);
+  const { data: lastHistoryId, refetch } = useLastHistoryQuery(
+    selectedPatient!.id,
+  );
   const { reset, socketRef } = useChartsSocket(isRealTime);
   const { indicatorsSocketRef } = useIndicatorsSocket(isRealTime);
 
   const { setSelectedHistory } = useHistoryStore();
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   useEffect(() => {
     if (lastHistoryId) {
@@ -32,14 +44,16 @@ export const RealTimeCharts = () => {
 
   const toggleRealTime = async () => {
     if (isRealTime) {
+      setLastHistoryLoading(true);
+      setIsRealTime(false);
+      socketRef.current?.close();
+      indicatorsSocketRef.current?.close();
+      await sleep(3000);
       const { data } = await refetch();
       if (data) {
         setSelectedHistory(data);
       }
-
-      setIsRealTime(false);
-      socketRef.current?.close();
-      indicatorsSocketRef.current?.close();
+      setLastHistoryLoading(false);
     } else {
       reset();
       setIsRealTime(true);
@@ -62,10 +76,20 @@ export const RealTimeCharts = () => {
           <Button
             variant={isRealTime ? "outline" : "primary"}
             onClick={toggleRealTime}
-            className="flex gap-1 w-full"
+            className="flex gap-1 w-full items-center justify-center"
+            disabled={lastHistoryLoading}
           >
-            {isRealTime ? <Square /> : <Play />}
-            {isRealTime ? "Завершить" : "Начать"}
+            {lastHistoryLoading ? (
+              <>
+                <Loader2 className="animate-spin" size={16} />
+                Загрузка...
+              </>
+            ) : (
+              <>
+                {isRealTime ? <Square /> : <Play />}
+                {isRealTime ? "Завершить" : "Начать"}
+              </>
+            )}
           </Button>
         </div>
 
