@@ -1,14 +1,29 @@
 import glob
-
+import zipfile
+from datetime import datetime
 import uvicorn
-from fastapi import FastAPI, Body, WebSocket
+from fastapi import FastAPI, Body, WebSocket, UploadFile, File
 import polars as pl
 import time
 import asyncio
 
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
 app = FastAPI()
 
+origins = [
+
+        "http://localhost:5173"
+           ]
+
+app.add_middleware(CORSMiddleware,
+                        # allow_origins=["*"],
+                        allow_origins=origins,
+                        allow_credentials=True,
+                        allow_methods=["*"],
+                        allow_headers=["*"],
+                   )
 
 @app.websocket("/ws_data/{t}/{folder_id}")
 async def websocket_endpoint(
@@ -56,3 +71,26 @@ async def websocket_endpoint(
         await websocket.close()
     except Exception as e:
         print("WebSocket closed:", e)
+
+
+@app.post('/v1/upload_to_sensors/upload_patient_data')
+async def upload_data(
+        data: UploadFile = File(None),
+):
+    assertion_error = "В папках не равное количество файлов"
+    try:
+        name = data.filename
+        data_path = "data/uploaded_data/"
+        zip_file_path = f"{data_path}{name}"
+        with open(zip_file_path, 'wb') as f:
+            f.write(data.file.read())
+        with zipfile.ZipFile(zip_file_path, 'r') as zip_object:
+            zip_object.extractall(path=data_path)
+        bpm_files = glob.glob(f'{data_path}{name}/bpm/*.csv')
+        uc_files = glob.glob(f'{data_path}{name}/uterus/*.csv')
+        assert len(bpm_files) == len(uc_files), assertion_error
+        return JSONResponse(content={"message": "success"}, status_code=200)
+    except AssertionError:
+        return JSONResponse(content={"message": assertion_error}, status_code=501)
+    except zipfile.BadZipFile:
+        return JSONResponse(content={"message": "Ошибка при открытии архива"}, status_code=501)

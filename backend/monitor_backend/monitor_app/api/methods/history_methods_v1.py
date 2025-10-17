@@ -17,7 +17,7 @@ async def get_history(patient_id, history_id, session, page, pagesize):
         history = res_get_history.one()
         return JSONResponse(content=jsonable_encoder(history._asdict()), status_code=200)
     else:
-        stmt = text(f'select * from ctg where "patientId" = {patient_id}')
+        stmt = text(f'select * from ctg where "patientId" = {patient_id} order by id')
         res_get_history = await session.execute(stmt)
         history = res_get_history.all()
         history_list = [i._asdict() for i in history]

@@ -43,7 +43,10 @@ fetal_health_indications = {"basalValue": 999, "basalStatus": "Не опреде
 
 
 def baseline_heart_rate_median(signal, kernel_size=51):
-    return medfilt(signal, kernel_size=kernel_size)
+    if np.count_nonzero(np.isnan(signal)) < 30:
+        return medfilt(signal, kernel_size=kernel_size)
+    else:
+        return 0
 
 
 async def receiver(url, websocket):
@@ -135,13 +138,13 @@ async def ticker(websocket):
                 try:
                     baseline = baseline_heart_rate_median(np.array(full_by_second['fhr'][-120:]))
                     diff = np.max(baseline[30:-30]) - np.min(baseline[30:-30])
-                    if diff < 10:
-                        status['basal'] = round(np.mean(baseline)/5)*5
+                    delta = np.nanmax(full_by_second['fhr'][-90:-30]) - np.nanmin(full_by_second['fhr'][-90:-30])
+                    if diff < 7 and delta <= 40:
+                        status['basal'] = round(np.mean(baseline) / 5) * 5
                         if len(full_by_second['fhr']) > 60:
                             percentille_diff = (np.nanpercentile(full_by_second['fhr'][-90:-30], 95) -
                                                 np.nanpercentile(full_by_second['fhr'][-90:-30], 5))
-                            status['var'] = round(percentille_diff/5)*5
-                # except ValueError:
+                            status['var'] = round(percentille_diff / 5) * 5
                 except Exception as e:
                     # print(":", e)
                     pass
@@ -154,10 +157,12 @@ async def ticker(websocket):
                     peaks_decs, decs_prop = find_peaks(-np.array(full_by_second['fhr'][-600:]), prominence=15, height=-status['basal'], width=30)
                     if len(decs_prop['right_bases']) != 0 and decs_prop['right_bases'][-1] > 594:
                         decs_determination_sec.append(sec_counter)
-                        if sec_counter in ucs_determination_sec:
-                            decs['decelsEarly'] +=1
+                        if len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1] < 3:
+                            decs['decelsEarly'] += 1
+                        elif len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1] < 60:
+                            decs['decelsLate'] += 1
                         else:
-                            decs['decelsVarBad'] +=1  #TODO добавить определение остальных видов децелераций
+                            decs['decelsVarBad'] += 1  # TODO добавить определение остальных видов децелераций
                     status['accs'] = len(peaks_accs)
                     status['decs'] = len(peaks_decs)
                 # pass
@@ -219,7 +224,7 @@ async def get_doctors(session):
 
 
 async def get_patients(session):
-    stmt = text("select * from patients")
+    stmt = text("select * from patients order by id desc")
     res_get_patients = await session.execute(stmt)
     patients = res_get_patients.all()
     patients_list = [i._asdict() for i in patients]
@@ -238,10 +243,11 @@ async def status_checker():
         status_sec_counter += 1
         if status['basal'] != 999 and status['var'] != 999 and status_sec_counter > 120:
             # basal fhr
-            if 110 < status['basal'] < 160:
+            if 110 <= status['basal'] <= 160:
                 fetal_health_indications['basalValue'] = status['basal']
                 fetal_health_indications['basalStatus'] = 'Нормальный'
-            elif 180 > status['basal'] > 161 or 100 < status['basal'] < 109:
+                fetal_health_indications['basalComment'] = 'Базальный ритм в порядке'
+            elif 180 >= status['basal'] >= 161 or 100 <= status['basal'] <= 109:
                 fetal_health_indications['basalValue'] = status['basal']
                 fetal_health_indications['basalStatus'] = 'Подозрительный'
                 fetal_health_indications['basalComment'] = 'Необходимо наблюдение, действия по устранению обратимых причин'
@@ -250,9 +256,10 @@ async def status_checker():
                 fetal_health_indications['basalStatus'] = 'Патологический'
                 fetal_health_indications['basalComment'] = 'Необходимо немедленное вмешательство для устранения обратимых причин'
             # variability
-            if 5 < status['var'] <= 25:
+            if 5 <= status['var'] <= 25:
                 fetal_health_indications['varValue'] = status['var']
                 fetal_health_indications['varStatus'] = 'Нормальный'
+                fetal_health_indications['varComment'] = 'Базальный ритм в порядке'
             elif status['var'] > 25 or status['basal'] < 5:  # TODO Добавить условие длительности
                 fetal_health_indications['varValue'] = status['var']
                 fetal_health_indications['varStatus'] = 'Подозрительный'
@@ -262,17 +269,28 @@ async def status_checker():
                 fetal_health_indications['varStatus'] = 'Патологический'
                 fetal_health_indications['varComment'] = 'Необходимо немедленное вмешательство для устранения обратимых причин'
             # accelerations
-            if status['accs'] > 0:
+            if status['accs'] != 999 and status['accs'] > 0:
                 fetal_health_indications['accsValue'] = status['accs']
                 fetal_health_indications['accsStatus'] = 'Нормальный'
                 fetal_health_indications['accsComment'] = 'Наличие акселераций позитивный признак'
             # decelerations
-            # if len([x for x in decs_determination_sec if x > status_sec_counter - 1800])
+            if status['decs'] != 999 or status['decs'] == 0:
+                fetal_health_indications['decsValue'] = status['decs']
+                fetal_health_indications['decsStatus'] = 'Нормальный'
+                fetal_health_indications['decsComment'] = ''
+            elif decs['decelsLate'] > 0:
+                fetal_health_indications['decsValue'] = status['decs']
+                fetal_health_indications['decsStatus'] = 'Патологический'
+                fetal_health_indications['decsComment'] = 'Наличие поздних децелераций указывает на наличие гипоксии'
+            elif status['decs'] != 999 or status['decs'] > 0:
+                fetal_health_indications['decsValue'] = status['decs']
+                fetal_health_indications['decsStatus'] = 'Подозрительный'
+                fetal_health_indications['decsComment'] = 'Наличие децелераций может указывать на наличие гипоксии'
 
 
 async def status_sender(websocket):
     await websocket.accept()
-    await websocket.send_json(fetal_health_indications)
+    # await websocket.send_json(fetal_health_indications)
     try:
         # sec_counter = 0
         last = copy.deepcopy(fetal_health_indications)
