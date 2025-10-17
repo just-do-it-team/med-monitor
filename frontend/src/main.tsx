@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ErrorBoundary } from "@/app/providers/error-boundary";
 import "./app/styles/index.scss";
 import { QueryProvider } from "@/app/providers/query-provider/query-provider.tsx";
+import { Toaster } from "@/shared/ui/sonner.tsx";
 
 const container = document.getElementById("root");
 
@@ -17,6 +18,7 @@ if (container) {
           <App />
         </ErrorBoundary>
       </QueryProvider>
+      <Toaster position="bottom-right" richColors expand />
     </BrowserRouter>,
   );
 } else {

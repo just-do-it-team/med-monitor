@@ -1,8 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/shared/api/api.ts";
-import Endpoints from "@/shared/api/endpoints.ts";
-import { PatientType } from "@/entities/patient/model/types/types.ts";
-import { handleApiError } from "@/shared/api/api-error-handler.ts";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/shared/api/api";
+import Endpoints from "@/shared/api/endpoints";
+import {
+  PatientType,
+  PatientUploadType,
+} from "@/entities/patient/model/types/types";
+import { handleApiError } from "@/shared/api/api-error-handler";
+import { toast } from "sonner";
 
 export const usePatientsQuery = () =>
   useQuery<PatientType[]>({
@@ -13,6 +17,70 @@ export const usePatientsQuery = () =>
         return response.data;
       } catch (e) {
         handleApiError(e, "Не удалось загрузить данные пациентов");
+        throw e;
       }
     },
   });
+
+export const usePatientUploadMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ data, onProgress }: PatientUploadType) => {
+      try {
+        const formData = new FormData();
+        formData.append("data", data);
+
+        const response = await api.post(
+          Endpoints.UPLOAD.UPLOAD_PATIENTS,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (event) => {
+              if (event.total) {
+                const progress = Math.round((event.loaded / event.total) * 100);
+                onProgress?.(progress);
+              }
+            },
+          },
+        );
+
+        return response.data;
+      } catch (e) {
+        handleApiError(e, "Не удалось загрузить файл пациентов");
+        throw e;
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["patients"] });
+      toast.success("Файл успешно загружен");
+    },
+  });
+};
+
+export const usePatientUploadToSensorsMutation = () => {
+  return useMutation({
+    mutationFn: async ({ data }: PatientUploadType) => {
+      try {
+        const formData = new FormData();
+        formData.append("data", data);
+
+        const response = await api.post(
+          "http://78.36.74.22:8001/v1/upload_to_sensors/upload_patient_data",
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
+
+        return response.data;
+      } catch (e) {
+        handleApiError(
+          e,
+          "Не удалось загрузить файл пациентов в модуль сенсоров",
+        );
+        throw e;
+      }
+    },
+  });
+};

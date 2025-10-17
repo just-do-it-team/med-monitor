@@ -257,14 +257,14 @@ export function StartSelectModal() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="px-2 h-auto font-light text-red-500 hover:text-red-600"
+                className="px-2 pt-4 h-auto font-light text-red-500 hover:text-red-600"
                 onClick={() => {
                   doctorsRefetch();
                   patientsRefetch();
                 }}
               >
                 <RotateCw size={16} className="mr-1" />
-                Повторить
+                Повторить загрузку
               </Button>
             ) : null}
           </div>

@@ -11,6 +11,10 @@ const Endpoints = {
   ANALYTICS: {
     GET_ANALYSIS: "/v1/analysis/start_analysis",
   },
+  UPLOAD: {
+    UPLOAD_PATIENTS: "/v1/upload/upload_patient_data",
+    UPLOAD_PATIENTS_TO_SENSORS: "/v1/upload_to_sensors/upload_patient_data",
+  },
 };
 
 export default Endpoints;

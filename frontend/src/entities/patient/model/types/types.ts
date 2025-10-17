@@ -1,3 +1,8 @@
+export type PatientUploadType = {
+  data: File;
+  onProgress?: (progress: number) => void;
+};
+
 export type PatientType = {
   id: number;
   fullName: string;
