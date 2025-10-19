@@ -18,7 +18,7 @@ if (container) {
           <App />
         </ErrorBoundary>
       </QueryProvider>
-      <Toaster position="bottom-right" richColors expand />
+      <Toaster position="bottom-right" expand />
     </BrowserRouter>,
   );
 } else {
