@@ -5,6 +5,8 @@ import asyncio
 import copy
 import polars as pl
 import numpy as np
+from itertools import groupby
+from scipy.interpolate import interp1d
 from scipy.signal import medfilt
 from scipy.signal import find_peaks
 from starlette.responses import JSONResponse
@@ -40,6 +42,25 @@ fetal_health_indications = {"basalValue": 999, "basalStatus": "Не опреде
                             'decsValue': 999, 'decsStatus': 'Не определено', 'decsComment': '',
                             'ucsValue': 999, 'ucsStatus': 'Не определено', 'ucsComment': '',
                             'overallStatus': 'Не определено'}
+
+
+def interpolate(signal):
+    isnan = np.isnan(signal)
+    gaps = []
+    for k, group in groupby(enumerate(isnan), key=lambda x: x[1]):
+        if k:
+            indices = [i for i, _ in group]
+            gaps.append((indices[0], indices[-1]))
+    signal_filled = signal.copy()
+    for start, end in gaps:
+        gap_len = end - start + 1
+        left = start - 1
+        right = end + 1
+        if left >= 0 and right < len(signal):
+            if gap_len <= 6:
+                f = interp1d([left, right], [signal[left], signal[right]])
+                signal_filled[start:end + 1] = f(np.arange(start, end + 1))
+    return signal_filled
 
 
 def baseline_heart_rate_median(signal, kernel_size=51):
@@ -144,28 +165,43 @@ async def ticker(websocket):
                         if len(full_by_second['fhr']) > 60:
                             percentille_diff = (np.nanpercentile(full_by_second['fhr'][-90:-30], 95) -
                                                 np.nanpercentile(full_by_second['fhr'][-90:-30], 5))
-                            status['var'] = round(percentille_diff / 5) * 5
+                            status['var'] = round(percentille_diff/5)*5
                 except Exception as e:
                     # print(":", e)
                     pass
-                peaks_ucs, ucs_prop = find_peaks(np.array(full_by_second['uc'][-600:]), prominence=15, height=10, width=30)
+                peaks_ucs, ucs_prop = find_peaks(np.array(full_by_second['uc'][-600:]), prominence=15, height=10, width=(20, 110))
                 if len(ucs_prop['right_bases']) != 0 and ucs_prop['right_bases'][-1] > 594:
-                    ucs_determination_sec.append(sec_counter)
+                    try:
+                        if sec_counter - ucs_determination_sec[-1][1] > 30:
+                            ucs_determination_sec.append(
+                                [int(sec_counter - (600 - ucs_prop['left_bases'][-1])), sec_counter])
+                    except:
+                        ucs_determination_sec.append(
+                            [int(sec_counter - (600 - ucs_prop['left_bases'][-1])), sec_counter])
                 status['ucs'] = len(peaks_ucs)
                 if status['basal'] != 999 and status['var'] != 999 and sec_counter > 60:
                     peaks_accs, accs_prop = find_peaks(np.array(full_by_second['fhr'][-600:]), prominence=15, height=status['basal'], width=15)
                     peaks_decs, decs_prop = find_peaks(-np.array(full_by_second['fhr'][-600:]), prominence=15, height=-status['basal'], width=30)
                     if len(decs_prop['right_bases']) != 0 and decs_prop['right_bases'][-1] > 594:
-                        decs_determination_sec.append(sec_counter)
-                        if len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1] < 3:
-                            decs['decelsEarly'] += 1
-                        elif len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1] < 60:
-                            decs['decelsLate'] += 1
-                        else:
-                            decs['decelsVarBad'] += 1  # TODO добавить определение остальных видов децелераций
+                        try:
+                            if sec_counter - decs_determination_sec[-1][1] > 30:
+                                decs_determination_sec.append([int(sec_counter - (600 - decs_prop['left_bases'][-1])), sec_counter])
+                                if len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1][1] < 3:
+                                    decs['decelsEarly'] += 1
+                                elif len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1][1] < 60:
+                                    decs['decelsLate'] += 1
+                                else:
+                                    decs['decelsVarBad'] += 1
+                        except:
+                            decs_determination_sec.append([int(sec_counter - (600 - decs_prop['left_bases'][-1])), sec_counter])
+                            if len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1][1] < 3:
+                                decs['decelsEarly'] += 1
+                            elif len(ucs_determination_sec) != 0 and sec_counter - ucs_determination_sec[-1][1] < 60:
+                                decs['decelsLate'] += 1
+                            else:
+                                decs['decelsVarBad'] += 1
                     status['accs'] = len(peaks_accs)
                     status['decs'] = len(peaks_decs)
-                # pass
     except Exception as e:
         print("ticker closed:", e)
         # await websocket.close()
@@ -191,11 +227,27 @@ async def ws_dashboard(websocket, ctg_type, folder_id, patient_id, session):
     filename = f'by_second{timestamp[0]}.parquet'
     # filepath_full_by_second = os.path.join(os.getenv("BASEDIR"), f"ctg_dir/{patient_id}/full.parquet")
     filepath_full_by_second = f"ctg_dir/{patient_id}/{filename}"
-    full_by_second_df = pl.LazyFrame(schema={'time': pl.Float32, 'fhr': pl.Float32, 'uc': pl.Float32},
+    full_by_second_df = pl.DataFrame(schema={'time': pl.Float32, 'fhr': pl.Float32, 'uc': pl.Float32},
                                      data={'time': full_by_second['time'][:min(len(full_by_second['time']), len(full_by_second['fhr']))],
                                            'fhr': full_by_second['fhr'][:min(len(full_by_second['time']), len(full_by_second['fhr']))],
                                            'uc': full_by_second['uc'][:min(len(full_by_second['time']), len(full_by_second['fhr']))]})
-    full_by_second_df.sink_parquet(filepath_full_by_second)
+    full_by_second_df = full_by_second_df.with_columns(fhr=(pl.when((pl.col('fhr') * 0.75 > pl.col('fhr').shift(1)) |
+                                        (pl.col('fhr') * 1.25 < pl.col('fhr').shift(-1))).then(pl.lit(None)).otherwise(
+        pl.col('fhr'))),
+                           uc=(pl.when((pl.col('uc') * 0.75 > pl.col('uc').shift(1)) |
+                                       (pl.col('uc') * 1.25 < pl.col('uc').shift(-1))).then(pl.lit(None)).otherwise(
+                               pl.col('uc'))))
+    fhr_interpolate = interpolate(full_by_second_df['fhr'].to_numpy())
+    uc_interpolate = interpolate(full_by_second_df['uc'].to_numpy())
+    decs_seconds = np.zeros(len(full_by_second_df)).astype(int)
+    for i in decs_determination_sec:
+        decs_seconds[i[0]:i[1]] = 1
+    ucs_seconds = np.zeros(len(full_by_second_df)).astype(int)
+    for i in ucs_determination_sec:
+        ucs_seconds[i[0]:i[1]] = 1
+    full_by_second_df = full_by_second_df.with_columns(fhr=fhr_interpolate, uc=uc_interpolate,
+                                                       fl=np.char.add(ucs_seconds.astype(str), decs_seconds.astype(str)).astype('<U2'))
+    full_by_second_df.write_parquet(filepath_full_by_second)
     valid = 'true' if len(full_by_second['fhr']) > int(os.getenv('MINIMUM_VALID_CTG_DURATION_SECOND')) else 'false'
     basal = 'null' if status['basal'] == 0 else status['basal']
     var = 'null' if status['var'] == 0 or status['var'] == np.nan else status['var']
