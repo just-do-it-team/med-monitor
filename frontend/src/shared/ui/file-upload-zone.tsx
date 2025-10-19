@@ -3,11 +3,13 @@ import { useDropzone } from "react-dropzone";
 import { Upload, XIcon, PaperclipIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils.ts";
 import { Button } from "@/shared/ui/button.tsx";
+import { toast } from "sonner";
 
 interface FileUploadZoneProps {
   title: string;
   accept?: Record<string, string[]>;
   maxFiles?: number;
+  maxFileSize?: number;
   onFilesChange: (files: File[]) => void;
   clearFiles?: boolean;
 }
@@ -20,6 +22,7 @@ interface FilePreview {
 export function FileUploadZone({
   accept,
   maxFiles = 1,
+  maxFileSize = 5,
   onFilesChange,
   clearFiles = false,
 }: FileUploadZoneProps) {
@@ -52,9 +55,28 @@ export function FileUploadZone({
     }
   }, [pendingFiles, maxFiles, onFilesChange]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setPendingFiles(acceptedFiles);
-  }, []);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const oversizedFiles = acceptedFiles.filter(
+        (file) => file.size > maxFileSize * 1024 * 1024,
+      );
+
+      if (oversizedFiles.length > 0) {
+        toast.error(
+          `Файл "${oversizedFiles[0].name}" превышает допустимый размер ${maxFileSize} MB`,
+        );
+      }
+
+      const validFiles = acceptedFiles.filter(
+        (file) => file.size <= maxFileSize * 1024 * 1024,
+      );
+
+      if (validFiles.length > 0) {
+        setPendingFiles(validFiles);
+      }
+    },
+    [maxFileSize],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -74,11 +96,9 @@ export function FileUploadZone({
 
   useEffect(() => {
     return () => {
-      files.forEach((file) => {
-        URL.revokeObjectURL(file.preview);
-      });
+      files.forEach((file) => URL.revokeObjectURL(file.preview));
     };
-  }, []);
+  }, [files]);
 
   return (
     <div className="w-full bg-white rounded-lg cursor-pointer">
@@ -98,6 +118,9 @@ export function FileUploadZone({
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Нажмите на поле или перетащите в него файл
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {`Максимальный размер файла: ${maxFileSize} MB`}
             </p>
             <p className="text-xs text-gray-500 mt-1">
               {`Допустимый формат: ${accept && Object.values(accept).join(" ")}`}

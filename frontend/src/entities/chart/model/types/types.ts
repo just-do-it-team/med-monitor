@@ -8,6 +8,7 @@ export type ChartIndicatorsType = {
 export type ChartDataType = {
   time: number;
   value: number;
+  fl?: string;
 };
 
 export type DashboardChartsDataType = {
@@ -44,6 +45,7 @@ export type HistoryChartsDataType = {
   time: number;
   fhr: number;
   uc: number;
+  fl?: string;
 };
 
 export type ChartsState = {

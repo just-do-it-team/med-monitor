@@ -66,7 +66,7 @@ export const usePatientUploadToSensorsMutation = () => {
         formData.append("data", data);
 
         const response = await api.post(
-          "http://78.36.74.22:8001/v1/upload_to_sensors/upload_patient_data",
+          Endpoints.UPLOAD.UPLOAD_PATIENTS_TO_SENSORS,
           formData,
           {
             headers: { "Content-Type": "multipart/form-data" },

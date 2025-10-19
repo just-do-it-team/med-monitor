@@ -70,6 +70,7 @@ export const PatientUploadCard = () => {
           accept={{ "application/zip": [".zip"] }}
           onFilesChange={setMediaFile}
           maxFiles={1}
+          maxFileSize={5}
           clearFiles={!mediaFile.length}
         />
         {mediaFile.length ? (

@@ -163,13 +163,15 @@ export const useHistoryChartQuery = (
           `${Endpoints.HISTORY.GET_CHARTS}?patient_id=${patientId}&history_id=${historyId}&start_point=${startTime}`,
         );
 
-        const fhrData = response.data.map((item: DashboardChartsDataType) => ({
+        const fhrData = response.data.map((item: HistoryChartsDataType) => ({
           time: item.time,
           value: item.fhr,
+          fl: item.fl,
         }));
-        const ucData = response.data.map((item: DashboardChartsDataType) => ({
+        const ucData = response.data.map((item: HistoryChartsDataType) => ({
           time: item.time,
           value: item.uc,
+          fl: item.fl,
         }));
 
         setHistoryFhrData(fhrData);

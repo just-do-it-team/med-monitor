@@ -240,6 +240,38 @@ export const UcChart: React.FC<UCChartProps> = ({
     return labels;
   };
 
+  const generateBackgroundSegments = () => {
+    const segments = [];
+    const visibleData = ucData.filter(
+      (point) => point.time >= windowStart && point.time <= windowEnd,
+    );
+
+    for (let i = 0; i < visibleData.length - 1; i++) {
+      const currentPoint = visibleData[i];
+      const nextPoint = visibleData[i + 1];
+
+      if (currentPoint.fl === "10" || currentPoint.fl === "11") {
+        const x1 = xScale(currentPoint.time);
+        const x2 = xScale(nextPoint.time);
+        const width = x2 - x1;
+
+        segments.push(
+          <rect
+            key={`bg-segment-${i}`}
+            x={x1}
+            y={0}
+            width={width}
+            height={chartHeight}
+            fill="#ffecc6"
+            opacity="0.5"
+          />,
+        );
+      }
+    }
+
+    return segments;
+  };
+
   return (
     <div className="overflow-hidden">
       <svg width={width} height={height} className="bg-veryLightGray">
@@ -249,6 +281,7 @@ export const UcChart: React.FC<UCChartProps> = ({
           </clipPath>
         </defs>
         <g transform={`translate(${margin.left}, ${margin.top})`}>
+          {generateBackgroundSegments()}
 
           {generateVerticalLines()}
           {generateUCHorizontalLines()}
